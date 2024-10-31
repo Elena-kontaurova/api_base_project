@@ -1,0 +1,9 @@
+project_name/
+    app/                    - Основной модуль приложения и вложенные пакеты для моделей
+        __init__.py
+        main.py             - Точка входа в наше приложение fastapi
+        models/             - Определение моделей Pyndantic для обработки проверки данных запрососв
+            __init__.py
+        routers/            - Содержит маршруты API 
+            __init__.py
+    requirements.txt
