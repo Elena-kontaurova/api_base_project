@@ -1,11 +1,15 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import Cookie,  FastAPI, File, UploadFile, BackgroundTasks, Response, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from models.__init__ import User, User_age, User_info_name, \
                             User_message, Feedback, Item, UserCreate, \
-                            Product
+                            Product, Userpas
 import json
 from typing import Annotated
+from datetime import datetime
+from string import ascii_letters
+from random import sample
+import uvicorn
 
 
 app = FastAPI()
@@ -210,3 +214,94 @@ async def get_html():
 async def get_sum(a: int, b: int):
     ''' получение суммы двух чисел'''
     return {"result": a+b}
+
+def write_notificarion(email: str, message = ''):
+    with open('log.txt', mode='w') as email_file:
+        content = f'Предупреждение для {email}:{message}'
+        email_file.write(content)
+
+@app.post('/send-notification/{email}')
+async def send_notofication(email: str, background_tasks: BackgroundTasks):
+    ''' Фоновая задача - отправка уведовления на email
+    Асинхронный обработчик'''
+    background_tasks.add_task(write_notificarion, email, message='Какое то уведомление')
+    return {"message": 'Уведовление отправленно в фоновом режиме'}
+
+@app.get('/items')
+async def read_items(ads_id: str | None = Cookie(default=None)):
+    ''' Использование Cookie'''
+    return {'ads_id': ads_id}
+
+@app.get('/')
+def root(last_visit = Cookie()):
+    ''' Использование Cookie'''
+    return {'Последний визит': last_visit}
+
+@app.get('/')
+def get_cookie(response: Response):
+    ''' Получаем текущею дату и время - последний визит с помощью Cookie'''
+    now = datetime.noow().strftime('%d/%m/%Y, %H:%M:%S')
+    response.set_cookie(key='последний визит', value=now)
+    return {'message': 'куки установленны'}
+
+
+
+db = {f'user{n}': f'pass{n}' for n in range(5)}
+
+tokens = {}
+
+def gen_token():
+    return ''.join(sample(ascii_letters, 16))
+
+@app.get('/user')
+def gutuser(response: Response, session_token=Cookie()):
+    if not session_token or session_token not in tokens:
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        return {'message': "Unauthorized"}
+    userename = tokens[session_token]
+    return {userename: db[userename]}
+
+@app.post('/login')
+def login(userpas: Userpas, responce: Response):
+    if userpas.username not in db:
+        responce.status_code = status.HTTP_404_NOT_FOUND
+        return {'error': 'пользователь не найден'}
+    if db[userpas.username] != userpas.password:
+        responce.status_code = status.HTTP_401_UNAUTHORIZED
+        return {'error': 'неверный пароль'}
+    token = gen_token()
+    responce.set_cookie(key='session_token', value = token, httponly=True)
+    tokens[token] = userpas.username
+    return {'userpass': userpas}
+
+@app.post('/signup')
+def signup(userpass: Userpas, response: Response):
+    if userpass.username in db:
+        response.status_code = status.HTTP_409_CONFLICT
+        return {'error': 'Имя пользователя занято'}
+    db[userpass.username] = userpass.password
+    return {'message': f'аккаунт {userpass.username} отличный'}
+
+@app.post('/signout')
+def signout(responce: Response, session_token = Cookie()):
+    if not session_token or session_token not in tokens:
+        return
+    tokens.pop(session_token, None)
+    responce.delete_cookie('session_token', httponly=True)
+    return {'message': 'Вы успешно вышли из системы'}
+
+@app.get('/users')
+def users():
+    return db
+
+@app.get('/t')
+def get_t():
+    return tokens
+
+if __name__ == '__main__':
+    uvicorn.run(
+        'main:app',
+        host = 'localhost',
+        port = 8000,
+        reload = True
+    )
