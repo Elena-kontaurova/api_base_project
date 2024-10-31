@@ -22,3 +22,22 @@ class User_message(BaseModel):
 class Feedback(BaseModel):
     name: str
     message: str
+
+class Item(BaseModel):
+    name: str
+    description: str | None = None
+    price: float
+    tax: float | None = None
+    tags: list[str] = []
+
+class UserCreate(BaseModel):
+    name : str
+    email : str
+    age : int
+    is_subscribed : bool | None = None 
+
+class Product(BaseModel):
+    product_id: int
+    name : str
+    category : str
+    price : float

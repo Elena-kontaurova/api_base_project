@@ -1,10 +1,102 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from models.__init__ import User, User_age, User_info_name, User_message, Feedback
+from models.__init__ import User, User_age, User_info_name, \
+                            User_message, Feedback, Item, UserCreate, \
+                            Product
 import json
+from typing import Annotated
+
 
 app = FastAPI()
+
+product_spisok = {
+    1: Product(
+        product_id=1, \
+        name = 'Smarthon', \
+        category='Electronica', \
+        price= 123.00),
+    2: Product(
+        product_id = 2, \
+        name = 'Phone Case', \
+        category= 'Accessories', \
+        price = 500.00),
+    3: Product(
+        product_id= 3, \
+        name = 'Iphone', \
+        category= 'Electronica', \
+        price = 235.00),
+    4: Product(
+        product_id= 4, \
+        name = 'Headphonees', \
+        category= 'Accessories', \
+        price= 875.00), 
+    5: Product(
+        product_id= 5, \
+        name= 'Smartwatch', \
+        category= 'Electronica', \
+        price = 120.00
+    ),
+}
+
+@app.get('/product/{product_id}')
+async def get_product(product_id: int):
+    ''' Поиск товара по айди'''
+    if product_id in product_spisok:
+        return product_spisok[product_id]
+    return "Товар c данным айди не найден"
+
+@app.get('/products/search')
+async def find_tovar(keyword: str, category : str, limit: int = 10):
+    ''' Поиск товара по ключу (имени) и категории товара'''
+    if category:
+        res = [p for p in product_spisok if p['category'].lower() == category.lower() and 
+            keyword.lower() in p['name'].lower()]
+    else:
+        res = [p for p in product_spisok if keyword.lower() in p['name'].lower()]
+    return res[:limit]
+
+@app.post('/create_user')
+async def create_user(usercreate : UserCreate):
+    ''' Маршрут который принимаем json в соответвии с моделью UserCreate
+    Функция ждя обработки входящих пользовательских данных и возврата ответа
+    с полученной информацией '''
+    return usercreate
+
+fake_items_dp = [{'item_name': 'Foo'}, {'item_name': 'Bar'}, {'item_name': 'Baz'}]
+
+@app.get('/items_request/')
+async def read_item(skip: int = 0, limit = 10):
+    ''' Обработка параметров запроса'''
+    return fake_items_dp[skip: skip + limit]
+
+@app.post('/items_create/')
+async def create_item(item: Item):
+    return item
+
+@app.post('/items/')
+async def create_item(item: Item) -> Item:
+    ''' Проверка всех запросов на соответвие этой модели'''
+    return item
+
+@app.get('/items/')
+async def read_items() -> list[Item]:
+    ''' Возращем список, который будет содержать pydantic модели'''
+    return [
+        Item(name = 'Portal Gun', price=42.0),
+        Item(name='Plumbus', price=32.0)
+    ]
+
+@app.post('/files/')
+async def create_file(file: Annotated[bytes, File()]):
+    ''' определение длинны файла'''
+    return {'file_size': len(file)}
+
+@app.post('/uploadfile/')
+async def create_upload_file(file: UploadFile):
+    ''' создаем загружаемый файл'''
+    return {'filename': file.filename}
+
 
 user = User(name = 'John Doe', id = 1)
 
