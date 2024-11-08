@@ -46,3 +46,10 @@ class Product(BaseModel):
 class Userpas(BaseModel):
     username : str
     password: str
+
+class User_Auten(BaseModel):
+    username: str
+    password: str
+
+USER_DATA = [User_Auten(**{'username': 'user1', 'password': 'pass1'}), 
+            User_Auten(**{'username': 'user2', 'password': 'pass2'})]

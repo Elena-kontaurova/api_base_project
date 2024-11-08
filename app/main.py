@@ -1,18 +1,28 @@
-from fastapi import Cookie,  FastAPI, File, UploadFile, BackgroundTasks, Response, status
+from fastapi import Cookie,  FastAPI, File, UploadFile, BackgroundTasks, Response, status, \
+                    Header, HTTPException, Depends, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from models.__init__ import User, User_age, User_info_name, \
                             User_message, Feedback, Item, UserCreate, \
-                            Product, Userpas
+                            Product, Userpas, User_Auten, USER_DATA
+from fastapi.security import HTTPBasic, HTTPBasicCredentials, HTTPAuthorizationCredentials, HTTPBearer
 import json
+import jwt
 from typing import Annotated
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from string import ascii_letters
 from random import sample
 import uvicorn
 
-
 app = FastAPI()
+
+
+SECRET = 'secret'
+ALGORITHMS = 'HS256'
+EXPIRE = 1
+
+security = HTTPBasic()
+
 
 product_spisok = {
     1: Product(
@@ -70,7 +80,7 @@ async def create_user(usercreate : UserCreate):
 fake_items_dp = [{'item_name': 'Foo'}, {'item_name': 'Bar'}, {'item_name': 'Baz'}]
 
 @app.get('/items_request/')
-async def read_item(skip: int = 0, limit = 10):
+async def read_item(skip: int = 0, limit : int = 10):
     ''' Обработка параметров запроса'''
     return fake_items_dp[skip: skip + limit]
 
@@ -251,10 +261,12 @@ db = {f'user{n}': f'pass{n}' for n in range(5)}
 tokens = {}
 
 def gen_token():
+    ''' Получение токена'''
     return ''.join(sample(ascii_letters, 16))
 
 @app.get('/user')
 def gutuser(response: Response, session_token=Cookie()):
+    '''Провверка пользователя на авторизованность в системе '''
     if not session_token or session_token not in tokens:
         response.status_code = status.HTTP_401_UNAUTHORIZED
         return {'message': "Unauthorized"}
@@ -263,6 +275,7 @@ def gutuser(response: Response, session_token=Cookie()):
 
 @app.post('/login')
 def login(userpas: Userpas, responce: Response):
+    ''' регистрация пользователя'''
     if userpas.username not in db:
         responce.status_code = status.HTTP_404_NOT_FOUND
         return {'error': 'пользователь не найден'}
@@ -276,6 +289,7 @@ def login(userpas: Userpas, responce: Response):
 
 @app.post('/signup')
 def signup(userpass: Userpas, response: Response):
+    ''' Вход в систему'''
     if userpass.username in db:
         response.status_code = status.HTTP_409_CONFLICT
         return {'error': 'Имя пользователя занято'}
@@ -284,6 +298,7 @@ def signup(userpass: Userpas, response: Response):
 
 @app.post('/signout')
 def signout(responce: Response, session_token = Cookie()):
+    ''' Выход из системы'''
     if not session_token or session_token not in tokens:
         return
     tokens.pop(session_token, None)
@@ -292,12 +307,15 @@ def signout(responce: Response, session_token = Cookie()):
 
 @app.get('/users')
 def users():
+    ''' Пользователи'''
     return db
 
 @app.get('/t')
 def get_t():
+    ''' вывод токена'''
     return tokens
 
+''' запуск кода'''
 if __name__ == '__main__':
     uvicorn.run(
         'main:app',
@@ -305,3 +323,104 @@ if __name__ == '__main__':
         port = 8000,
         reload = True
     )
+
+@app.get('/items/')
+async def read_items(x_token: Annotated[str | None, Header()] = None):
+    return {'X-token values': x_token}
+
+@app.get('/')
+def root(user_agent: str=Header()):
+    return {'User-Agent': user_agent}
+
+@app.get('/')
+def root():
+    data = 'Привет отсюда'
+    return Response(content=data, media_type='text/plain', headers={'Secret-Code':'123459'})
+
+@app.get('/')
+def root(responce: Response):
+    responce.headers['Secret-Code'] = '123459'
+    return {'message': 'Привет из моего api'}
+
+
+@app.get('/headers')
+def root(user_agent: Annotated[str | None, Header()] = None, 
+        accept_language: Annotated[str | None, Header()] = None):
+    if user_agent is None or accept_language is None:
+        raise HTTPException(
+            status_code=400,
+            detail='Must be User-Agent and Accept-Language'
+        )
+    if accept_language != 'en-US, en; 1=0.9, es; q=0.8':
+        raise HTTPException(
+            status_code=400,
+            detail='Accept-Language id bad format'
+        )
+    return {
+        'User-Agent': user_agent,
+        'Accept-Language': accept_language
+    }
+
+# Аетинтификация и авторизация
+# Реализация базовой аутентификации
+
+def authenticate_user(creadentials: HTTPBasicCredentials = Depends(security)):
+    user_auten = get_user_from_db(creadentials.username)
+    if user is None or user_auten.password != creadentials.password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
+    return user_auten
+
+def get_user_from_db(username: str):
+    for user_auten in USER_DATA:
+        if user_auten.username == username:
+            return user_auten
+    return None
+    
+@app.get('/protected_resource/')
+def get_protected_resource(user_auten: User_Auten = Depends(authenticate_user)):
+    return {'message': 'You have access to the protected resourse!', 'user_info': user_auten}
+
+@app.get('/login')
+async def user_login(user_auten: User_Auten = Depends(authenticate_user)):
+    return {'message': 'You goy my secret. Welcome!'}
+
+@app.get('/logout')
+async def user_logout():
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Logging out...',
+                        headers={'WWW-Authenticate': 'Basic'})
+
+# аутентификация на основе JWT
+
+def generate_token():
+    jwt_token = jwt.encode(
+    {'exp': datetime.now(tz = timezone.utc) + timedelta(minutes=EXPIRE)},
+    SECRET,
+    algorithm = ALGORITHMS
+)
+    return jwt_token
+
+def check_token(token: str):
+    try:
+        decoded = jwt.decode(token, SECRET, algorithms = [ALGORITHMS])
+        if decoded:
+            return {'message': 'access granted'}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Signature had expired')
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid token')
+    
+def get_user_from_db_1(username: str):
+    for user_auten in USER_DATA:
+        if user_auten.username == username:
+            return user
+    return None
+
+@app.post('/login')
+async def basic_login(user_auten: User_Auten = Depends(authenticate_user)):
+    token = generate_token()
+    return {'access_token': token}
+
+@app.get('/protected_resourse')
+async def login_with_jwt_token(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer)):
+    token = credentials.credentials
+    return {'message': check_token(token)}
