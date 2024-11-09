@@ -1,4 +1,5 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, PositiveInt, EmailStr
+from typing import Literal, List
 
 class User(BaseModel):
     name : str
@@ -53,3 +54,36 @@ class User_Auten(BaseModel):
 
 USER_DATA = [User_Auten(**{'username': 'user1', 'password': 'pass1'}), 
             User_Auten(**{'username': 'user2', 'password': 'pass2'})]
+
+
+class FakeDBUser(BaseModel):
+    username: str
+    age: PositiveInt
+    email: EmailStr
+    passaword: str
+    scopes: List[Literal['admin', 'user', 'guest']] = [['guest']]
+
+class FakeDBUserPublic(BaseModel):
+    username: str
+    age: PositiveInt
+    email: EmailStr
+
+
+class ResponseMessage(BaseModel):
+    message: str = Field(default='success')
+    username: str
+
+
+class ResponseMessageWithInfo(BaseModel):
+    user_info: dict = {}
+
+class JWTToken(BaseModel):
+    access_token: str
+    token_type: str
+
+class UserAuth(BaseModel):
+    username: str
+    password: str
+
+class UserWithScope(UserWithAge): # type: ignore
+    scopes: List[str]

@@ -1,18 +1,25 @@
 from fastapi import Cookie,  FastAPI, File, UploadFile, BackgroundTasks, Response, status, \
-                    Header, HTTPException, Depends, Request
+                    Header, HTTPException, Depends, Request, Security, Body, Path
+from fastapi.exceptions import HTTPException
+from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordRequestForm, SecurityScopes
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from models.__init__ import User, User_age, User_info_name, \
                             User_message, Feedback, Item, UserCreate, \
-                            Product, Userpas, User_Auten, USER_DATA
+                            Product, Userpas, User_Auten, USER_DATA, \
+                            JWTToken, UserAuth, UserWithScope, ResponseMessage, \
+                            ResponseMessageWithInfo, FakeDBUser, FakeDBUserPublic
+from pydantic import ValidationError
 from fastapi.security import HTTPBasic, HTTPBasicCredentials, HTTPAuthorizationCredentials, HTTPBearer
 import json
 import jwt
-from typing import Annotated
+from typing import Annotated, Any, NoReturn
 from datetime import datetime, timezone, timedelta
 from string import ascii_letters
 from random import sample
 import uvicorn
+from datetime import datetime, timedelta, timezone
+
 
 app = FastAPI()
 
@@ -424,3 +431,188 @@ async def basic_login(user_auten: User_Auten = Depends(authenticate_user)):
 async def login_with_jwt_token(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer)):
     token = credentials.credentials
     return {'message': check_token(token)}
+
+# управление доступом на основе ролей
+
+oauth2 = OAuth2AuthorizationCodeBearer(
+    tokenUrl ='login',
+    scopes={
+        'admin': 'grant all privileges',
+        'user': 'read and update',
+        'guest': 'read only'
+    }
+)
+
+SECRET_KEY = 'a67a913a5443d6a2b18edaafbafd229617fb3d7d7da30582d86c240771f7'
+EXPIRES = timedelta(seconds=60)
+ALGORITHM = 'HS256'
+
+fake_db_1 = {
+    'john': {
+        'username': 'john',
+        'age': 40,
+        'email': 'john@google.com',
+        'passoword': 'securpassword123',
+        'scopes': ['admin']
+    },
+    'alica': {
+        'username': 'alica',
+        'age': 29,
+        'email': 'alica@google.com',
+        'password': 'securepassword456',
+        'scopes': ['user']
+    },
+    'ryan': {
+        'username': 'ryan', 
+        'age': 35,
+        'email': 'ryan@google.com',
+        'password': 'securepassword789',
+        'scopes': ['guest']
+    }
+}
+
+def create_jwt(data: dict[str, Any]) -> JWTToken:
+    payload = data.copy()
+    payload.update({'exp': datetime.now(tz=timedelta.utc)+ EXPIRES}) 
+    token = jwt.encode(payload, SECRET_KEY, alorithm = ALGORITHM)
+    return token
+
+def user_authenticate(
+        user: Annotated[OAuth2PasswordRequestForm, Depends()]
+) -> NoReturn:
+    if user.username not in fake_db_1:
+        raise HTTPException(
+            status_code= status.HTTP_401_UNAUTHORIZED, 
+            detail='Пользователь не найден',
+            headers={'WWW-Authenticate': 'Bearer'}
+        )
+    
+    if user.password != fake_db_1[user.username]['password']:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail='Неправильный пароль',
+            headers={'WWW-Authenticate': 'Bearer'}
+        )
+    
+
+def check_credentials(
+        scopes: SecurityScopes,
+        token: Annotated[str, Depends(oauth2)]
+):
+    if scopes.scopes:
+        header = f'Bearer scope= "{scopes.scope_str}"'
+    else:
+        header = 'Bearer'
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED, 
+        detail='Не удалось проверить учетные данные',
+        headers={'WWW-Authenticate': header},
+    )
+
+    try:
+        decoded_token =jwt.decode(token, SECRET_KEY, leeway = 0, algorithm = [ALGORITHM])
+        username = decoded_token.get('sub')
+        if not username:
+            raise credentials_exception
+    except (ValidationError):
+        raise credentials_exception
+    
+    user = get_user_db(username)
+    user_scopy = set(user.scopes)
+    if not user:
+        raise credentials_exception
+    elif not user.scopes.issubset(set(scopes.scopes)):
+        raise HTTPException(
+            status_code= status.HTTP_401_UNAUTHORIZED, 
+            detail='Недостаточно разрешений',
+            headers={'WWW-Authenticate': header},
+        )
+    return user
+
+
+def get_user_db(username: str):
+    if username in fake_db_1:
+        return UserWithScope(**fake_db_1.get(username))
+    
+def get_user_info(username: str):
+    if username in fake_db_1:
+        return FakeDBUserPublic(**fake_db_1[username])
+    
+def add_user_db(new_user: FakeDBUser, username: str):
+    fake_db_1.update({username: new_user.model_dump()})
+
+def delete_user_db(username: str):
+    if username not in fake_db_1:
+        raise ValueError('Пользователь не найден')
+    del fake_db_1[username]
+
+def update_user_db(username: str, user_data: dict):
+    if username not in fake_db_1:
+        raise ValueError('Невозсожно обнавить')
+    fake_db_1[username].update(user_data)
+
+
+@app.post('/login', dependencies=[Depends(user_authenticate)])
+async def login_user(
+    login_data: Annotated[OAuth2PasswordRequestForm, Depends()]
+) -> JWTToken:
+    return JWTToken(**{'access_token': create_jwt({'sub': login_data.username}),
+                    'token_type': 'bearer'})
+
+@app.get('/prorected_resourse', response_model=ResponseMessage)
+async def get_resourse(
+    user: Annotated[UserAuth, Security(check_credentials, scopes=['admin', 'user'])]
+) -> ResponseMessage:
+    return ResponseMessage(message='Доступ предоставлен', username=user.username)
+
+
+@app.post('/user/{username}')
+def add_user(
+    user: Annotated[UserAuth, Security(check_credentials, scopes=['admin'])],
+    username: Annotated[str, Path()],
+    new_user: Annotated[FakeDBUser, Body()]
+) -> ResponseMessage:
+    add_user_db(new_user, username)
+    return ResponseMessage(message='Новый пользователь добавлен', username=username)
+
+@app.delete('/user/{username}')
+def delete_user(
+    user: Annotated[UserAuth, Security(check_credentials, scopes=['admin'])],
+    username: Annotated[str, Path]
+) -> ResponseMessage:
+    delete_user_db(username)
+    return ResponseMessage(message='Пользователь удален')
+
+@app.patch('/user/{username}')
+def update_user(
+    user: Annotated[UserAuth, Security(check_credentials, scopes=['admin', 'user'])],
+    username: Annotated[str, Path()],
+    new_data: Annotated[dict, Body()]
+) -> ResponseMessage:
+    if user.username != username:
+        if 'admin' not in user.scopes:
+            raise HTTPException(
+                status_code= status.HTTP_401_UNAUTHORIZED,
+                detail='Недостаточно разрешений')
+    update_user_db(username, new_data)
+    return ResponseMessage(message='Пользователь обнавлен', username=username)
+
+@app.get('/user/{username}')
+def get_user(
+    user: Annotated[UserAuth, Security(check_credentials, scopes=['admin', 'user', 'guest'])],
+    username: Annotated[str, Path()]
+) -> ResponseMessage:
+    user = get_user_info(username)
+    return ResponseMessageWithInfo(
+        message = 'Полученнная информация о пользователе',
+        username = user.username,
+        user_info=user.model_dump()
+    )
+
+if __name__ == '__main__':
+    uvicorn.run(
+        'main:app',
+        host = '127.0.0.1',
+        port = 8000,
+        reload=True
+    )
