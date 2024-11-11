@@ -609,6 +609,12 @@ def get_user(
         user_info=user.model_dump()
     )
 
+# интеграция даз данных
+
+# подключение fastAPI к базам данных 
+
+
+
 if __name__ == '__main__':
     uvicorn.run(
         'main:app',

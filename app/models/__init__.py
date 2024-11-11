@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, PositiveInt, EmailStr
 from typing import Literal, List
+from sqlmodel import Field, SQLModel
 
 class User(BaseModel):
     name : str
@@ -87,3 +88,27 @@ class UserAuth(BaseModel):
 
 class UserWithScope(UserWithAge): # type: ignore
     scopes: List[str]
+
+
+
+
+class ToDo(SQLModel, table = True):
+    id: int | None = Field(default=None, primary_key=True)
+    title: str = Field(description='Название задачи')
+    description : str | None = Field(default=None, description='Описание задачи')
+    completed: bool = Field(description='Статус задачи', default=False)
+
+
+class NewTask(BaseModel):
+    title: str = Field(description='Название задачи')
+    description: str | None = Field(default=None, description='Описание задачи')
+    completed: bool = Field(description='Статус задачи', default=False)
+
+
+class Task(NewTask):
+    id: int = Field(description='ID задачи')
+
+
+class ResponseMessageBD(BaseModel):
+    message: str = Field(default='success')
+    row: Task | None
