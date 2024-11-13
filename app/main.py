@@ -8,7 +8,8 @@ from models.__init__ import User, User_age, User_info_name, \
                             User_message, Feedback, Item, UserCreate, \
                             Product, Userpas, User_Auten, USER_DATA, \
                             JWTToken, UserAuth, UserWithScope, ResponseMessage, \
-                            ResponseMessageWithInfo, FakeDBUser, FakeDBUserPublic
+                            ResponseMessageWithInfo, FakeDBUser, FakeDBUserPublic, \
+                            ToDo, Task, NewTask, ResponseMessageBD
 from pydantic import ValidationError
 from fastapi.security import HTTPBasic, HTTPBasicCredentials, HTTPAuthorizationCredentials, HTTPBearer
 import json
@@ -19,6 +20,7 @@ from string import ascii_letters
 from random import sample
 import uvicorn
 from datetime import datetime, timedelta, timezone
+from db import add_row, create_tables, select_row_by_id, update_row_by_id, SQLModel, delete_row_by_id
 
 
 app = FastAPI()
@@ -613,7 +615,39 @@ def get_user(
 
 # подключение fastAPI к базам данных 
 
+@app.post('/new_task')
+def create_task(
+    new_task: Annotated[NewTask, Body()]
+) -> ToDo:
+    new_row = ToDo(title=new_task.title, description=new_task.description)
+    row = add_row(new_row)
+    return row
 
+@app.get('/task/{id}', response_model=Task | None)
+def get_task(
+    id: Annotated[int, Path()]
+) -> Task | None:
+    row = select_row_by_id(id)
+    return Task(**row.model_dump())
+
+@app.put('/task/{id}')
+def update_task(
+    id: Annotated[int, Path()],
+    new_row: Annotated[NewTask, Body()]
+) -> Task | ResponseMessageBD:
+    row = update_row_by_id(id, new_row)
+    match type(row).__name__:
+        case 'Todo':
+            return Task(**row.model_dump)
+        case 'ResponseMessageDB':
+            return row
+        
+@app.delete('/task/{id}')
+def delete_task(
+    id: Annotated[int, Path()]
+) -> ResponseMessageBD:
+    message = delete_row_by_id(id)
+    return message
 
 if __name__ == '__main__':
     uvicorn.run(
