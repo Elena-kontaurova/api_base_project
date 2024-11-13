@@ -14,16 +14,71 @@ from pydantic import ValidationError
 from fastapi.security import HTTPBasic, HTTPBasicCredentials, HTTPAuthorizationCredentials, HTTPBearer
 import json
 import jwt
-from typing import Annotated, Any, NoReturn
+from typing import Annotated, Any, NoReturn, List
 from datetime import datetime, timezone, timedelta
 from string import ascii_letters
 from random import sample
 import uvicorn
 from datetime import datetime, timedelta, timezone
 from db import add_row, create_tables, select_row_by_id, update_row_by_id, SQLModel, delete_row_by_id
+from sqlalchemy import create_engine, Column, String, Integer, UUID
+from sqlalchemy.orm import sessionmaker, Session, declarative_base
+
+SQLALHEMY_DATABASE_URL = 'postgresql+psycopg2://postgres:1@localhost/new_database'
+
+engine = create_engine(SQLALHEMY_DATABASE_URL)
+SessionLocal = sessionmaker(autocommit = False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+
+class Product(Base):
+    __tablename__ = 'products'
+    id = Column(UUID(as_uuid=True), primary_key=True, default=UUID.uuid4)
+    title = Column(String, nullable=False)
+    price = Column(String, nullable=False)
+    count = Column(Integer, nullable=False)
+    # description = Column(String, nullable=False, server_default='')
+
+class ProductCreate(BaseModel):
+    title: int
+    price: str
+    count: int
+    # description: str
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 app = FastAPI()
+
+def add_products(products: List[ProductCreate], db: Session):
+    for product_data in products:
+        product = Product(
+            id = UUID.uiid4(),
+            title = product_data.price,
+            price = product_data.price,
+            count = product_data.count,
+            # description = product_data.deskription
+        )
+        db.add(product)
+    db.commit()
+
+@app.post('/products/')
+def create_products(products: List[ProductCreate], db: Session= Depends(get_db)):
+    add_products(products, db)
+    return {'message': 'Products added successfully'}
+
+Base.metadata.create_all(bind = engine)
+
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run(app,host='127.0.0.1', port = 8000)
+
+
 
 
 SECRET = 'secret'
@@ -649,10 +704,14 @@ def delete_task(
     message = delete_row_by_id(id)
     return message
 
-if __name__ == '__main__':
-    uvicorn.run(
-        'main:app',
-        host = '127.0.0.1',
-        port = 8000,
-        reload=True
-    )
+# миграция базы данных с помощью Alembic
+
+
+
+# if __name__ == '__main__':
+#     uvicorn.run(
+#         'main:app',
+#         host = '127.0.0.1',
+#         port = 8000,
+#         reload=True
+#     )

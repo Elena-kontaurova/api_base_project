@@ -86,7 +86,7 @@ class UserAuth(BaseModel):
     username: str
     password: str
 
-class UserWithScope(UserWithAge): # type: ignore
+class UserWithScope(BaseModel):
     scopes: List[str]
 
 
