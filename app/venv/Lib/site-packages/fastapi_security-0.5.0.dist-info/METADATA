@@ -1,0 +1,67 @@
+Metadata-Version: 2.1
+Name: fastapi-security
+Version: 0.5.0
+Summary: Add authentication and authorization to your FastAPI app via dependencies.
+Home-page: https://jmagnusson.github.io/fastapi-security/
+License: MIT
+Author: Jacob Magnusson
+Author-email: m@jacobian.se
+Requires-Python: >=3.7,<4.0
+Classifier: Development Status :: 4 - Beta
+Classifier: Environment :: Web Environment
+Classifier: Framework :: AsyncIO
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Information Technology
+Classifier: Intended Audience :: System Administrators
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Topic :: Internet
+Classifier: Topic :: Internet :: WWW/HTTP
+Classifier: Topic :: Software Development
+Classifier: Topic :: Software Development :: Libraries
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Typing :: Typed
+Provides-Extra: oauth2
+Requires-Dist: PyJWT[crypto] (>=2,<3); extra == "oauth2"
+Requires-Dist: aiohttp (>=3,<4); extra == "oauth2"
+Requires-Dist: fastapi (>=0,<1)
+Requires-Dist: pydantic (>=1,<2)
+Project-URL: Documentation, https://jmagnusson.github.io/fastapi-security/
+Project-URL: Repository, https://github.com/jmagnusson/fastapi-security
+Description-Content-Type: text/markdown
+
+# FastAPI Security
+
+[![Continuous Integration Status](https://github.com/jacobsvante/fastapi-security/actions/workflows/ci.yml/badge.svg)](https://github.com/jacobsvante/fastapi-security/actions/workflows/ci.yml)
+[![Continuous Delivery Status](https://github.com/jacobsvante/fastapi-security/actions/workflows/cd.yml/badge.svg)](https://github.com/jacobsvante/fastapi-security/actions/workflows/cd.yml)
+[![Python Versions](https://img.shields.io/pypi/pyversions/fastapi-security.svg)](https://pypi.org/project/fastapi-security/)
+[![Code Coverage](https://img.shields.io/codecov/c/github/jacobsvante/fastapi-security?color=%2334D058)](https://codecov.io/gh/jacobsvante/fastapi-security)
+[![PyPI Package](https://img.shields.io/pypi/v/fastapi-security?color=%2334D058&label=pypi%20package)](https://pypi.org/project/fastapi-security)
+
+Add authentication and authorization to your FastAPI app via dependencies.
+
+## Installation
+
+With OAuth2/OIDC support:
+
+```bash
+pip install fastapi-security[oauth2]
+```
+
+With basic auth only:
+
+```bash
+pip install fastapi-security
+```
+
+## Documentation
+
+[The documentation for FastAPI-Security is found here](https://jacobsvante.github.io/fastapi-security/).
+

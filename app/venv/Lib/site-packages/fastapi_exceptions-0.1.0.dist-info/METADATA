@@ -1,0 +1,59 @@
+Metadata-Version: 2.1
+Name: fastapi-exceptions
+Version: 0.1.0
+Summary: Common exceptions for FastAPI
+Home-page: https://github.com/Kholodnyi/fastapi-exceptions
+Author: Yurii Kholodnyi
+Author-email: yurii.kholodnyi@gmail.com
+License: UNKNOWN
+Project-URL: Bug Tracker, https://github.com/Kholodnyi/fastapi-exceptions/issues
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: Environment :: Web Environment
+Classifier: Framework :: FastAPI
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+License-File: LICENCE
+
+# [FastAPI](https://fastapi.tiangolo.com/) exceptions
+
+## Introduction
+
+`fastapi-exceptions` is a set of standard http exceptions based on starlette exceptions.
+## Installation
+
+```shell
+> pip install fastapi-exceptions
+```
+
+## Usage
+
+Instead of duplication of exceptions codes and their details for standard cases:
+
+```python
+from fastapi import HTTPException
+from starlette import status
+
+# some app logic ...
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail='Authentication credentials were not provided',
+    )
+```
+
+you can simply import exceptions and use wherever you need:
+```python
+from fastapi_exceptions.exceptions import NotAuthenticated
+
+# some app logic ...
+    raise NotAuthenticated()
+```
+
+and, of course, modify details if needed:
+```python
+# some app logic ...
+    raise NotAuthenticated(detail='No authentication header')
+```
+
