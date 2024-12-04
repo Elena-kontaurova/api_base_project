@@ -6,6 +6,7 @@ down_revision = None
 branch_labels = None
 depends_on = None
 
+
 def upgade():
     op.create_table(
         'users',
@@ -13,6 +14,7 @@ def upgade():
         sa.Column('username', sa.String(50), nullable=False),
         sa.Column('email', sa.String(100), nullable=False)
     )
+
 
 def downgrade():
     op.drop_table('users')

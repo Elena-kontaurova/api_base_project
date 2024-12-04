@@ -5,8 +5,10 @@ conn_string = 'postgresql+psycopg://postgres:!localhost:5433/homedb'
 
 engine = create_engine(conn_string)
 
+
 def create_tables():
     SQLModel.metadata.create_all(engine)
+
 
 def add_row(row: ToDo) -> ToDo:
     with Session(engine) as session:
@@ -15,11 +17,13 @@ def add_row(row: ToDo) -> ToDo:
         session.refresh(row)
     return row
 
+
 def select_row_by_id(row_id: int) -> ToDo:
     with Session(engine) as session:
         statement = select(ToDo).where(col(ToDo.id) == row_id)
         result = session.exec(statement).first()
         return result
+
 
 def update_row_by_id(row_id: int, data: NewTask) -> ToDo | ResponseMessageBD:
     new_row = select_row_by_id(row_id)
@@ -34,11 +38,13 @@ def update_row_by_id(row_id: int, data: NewTask) -> ToDo | ResponseMessageBD:
         return new_row
     return ResponseMessageBD(**{'message': 'now row found', 'row': None})
 
+
 def delete_row_by_id(row_id: int) -> ResponseMessageBD:
     delete_row = select_row_by_id(row_id)
     if delete_row:
         with Session(engine) as session:
             session.delete(delete_row)
             session.commit()
-        return ResponseMessageBD(**{'message': 'row deleted', 'row': Task(**delete_row.model_dump())})
+        return ResponseMessageBD(**{
+            'message': 'row deleted', 'row': Task(**delete_row.model_dump())})
     return ResponseMessageBD(**{'message': 'no row found', 'row': None})
