@@ -28,6 +28,7 @@ from models.__init__ import User, User_age, User_info_name, \
                             Task, NewTask, ResponseMessageBD
 from db import add_row, select_row_by_id, update_row_by_id, delete_row_by_id
 
+
 SQLALHEMY_DATABASE_URL = (
     'postgresql+psycopg2://postgres:1@localhost/newdatabase'
 )
