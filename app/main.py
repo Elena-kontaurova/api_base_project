@@ -72,7 +72,7 @@ def add_products(products: List[ProductCreate], db: Session):
     ''' kkjkjkjk'''
     for product_data in products:
         product = Product(
-            id=UUID.uiid4(),
+            id = UUID.uiid4(),
             title=product_data.price,
             price=product_data.price,
             count=product_data.count,
@@ -91,10 +91,6 @@ def create_products(products: List[ProductCreate],
 
 
 Base.metadata.create_all(bind=engine)
-
-# if __name__ == '__main__':
-#     import uvicorn
-#     uvicorn.run(app,host='127.0.0.1', port = 8000)
 
 
 SECRET = 'secret'
@@ -834,5 +830,6 @@ def delete_task(
     ''' ooioklklklklks'''
     message = delete_row_by_id(id)
     return message
+
 
 # миграция базы данных с помощью Alembic
